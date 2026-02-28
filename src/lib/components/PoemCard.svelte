@@ -98,31 +98,29 @@
 		<div class="weather-note">Weather: {weather_context}</div>
 	{/if}
 
-	{#if !compact}
-		<div class="rating-buttons">
-			<button
-				class="rate-btn"
-				class:active={currentRating === 'up'}
-				disabled={ratingLoading}
-				onclick={() => setRating('up')}
-				title="Thumbs up"
-			>+1</button>
-			<button
-				class="rate-btn"
-				class:active={currentRating === 'down'}
-				disabled={ratingLoading}
-				onclick={() => setRating('down')}
-				title="Thumbs down"
-			>-1</button>
-			<button
-				class="rate-btn favorite"
-				class:active={currentRating === 'favorite'}
-				disabled={ratingLoading}
-				onclick={() => setRating('favorite')}
-				title="Favorite"
-			>*</button>
-		</div>
-	{/if}
+	<div class="rating-buttons">
+		<button
+			class="rate-btn"
+			class:active={currentRating === 'up'}
+			disabled={ratingLoading}
+			onclick={() => setRating('up')}
+			title="Thumbs up"
+		>+1</button>
+		<button
+			class="rate-btn"
+			class:active={currentRating === 'down'}
+			disabled={ratingLoading}
+			onclick={() => setRating('down')}
+			title="Thumbs down"
+		>-1</button>
+		<button
+			class="rate-btn favorite"
+			class:active={currentRating === 'favorite'}
+			disabled={ratingLoading}
+			onclick={() => setRating('favorite')}
+			title="Favorite"
+		>*</button>
+	</div>
 
 	{#if thinking().length > 0 && thinking()[0] && !compact}
 		<button class="thinking-toggle" onclick={() => (showThinking = !showThinking)}>
@@ -243,5 +241,27 @@
 		color: #555;
 		line-height: 1.6;
 		white-space: pre-wrap;
+	}
+
+	@media (max-width: 640px) {
+		.poem-card {
+			padding: 1rem;
+		}
+		h2 {
+			font-size: 1.1rem;
+		}
+		.poem-body {
+			font-size: 0.95rem;
+			line-height: 1.6;
+		}
+		.rate-btn {
+			padding: 0.35rem 0.8rem;
+			font-size: 0.85rem;
+			min-height: 36px;
+		}
+		.thinking-toggle {
+			padding: 0.35rem 0.8rem;
+			min-height: 36px;
+		}
 	}
 </style>

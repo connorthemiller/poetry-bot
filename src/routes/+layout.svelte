@@ -7,12 +7,15 @@
 
 <div class="app">
 	<nav class="sidebar">
-		<h1 class="logo">poetry bot</h1>
-		<ul>
-			<li><a href="/">Dashboard</a></li>
-			<li><a href="/poems">Poems</a></li>
-			<li><a href="/references">References</a></li>
-		</ul>
+		<div class="nav-top">
+			<h1 class="logo">poetry bot</h1>
+			<ul>
+				<li><a href="/">Dashboard</a></li>
+				<li><a href="/poems">Poems</a></li>
+				<li><a href="/voice">Voice</a></li>
+				<li><a href="/references">References</a></li>
+			</ul>
+		</div>
 		<div class="sidebar-footer">
 			<AgentStatus />
 		</div>
@@ -79,5 +82,53 @@
 		flex: 1;
 		padding: 2rem;
 		max-width: 800px;
+		min-width: 0;
+	}
+
+	@media (max-width: 640px) {
+		.app {
+			flex-direction: column;
+		}
+		.sidebar {
+			width: 100%;
+			border-right: none;
+			border-bottom: 1px solid #eee;
+			padding: 0.75rem 1rem;
+			flex-direction: row;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.5rem;
+		}
+		.nav-top {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			overflow-x: auto;
+			min-width: 0;
+		}
+		.logo {
+			margin: 0;
+			white-space: nowrap;
+			font-size: 0.9rem;
+		}
+		ul {
+			display: flex;
+			gap: 0.25rem;
+		}
+		li {
+			margin-bottom: 0;
+		}
+		a {
+			white-space: nowrap;
+			font-size: 0.8rem;
+			padding: 0.25rem 0.4rem;
+		}
+		.sidebar-footer {
+			margin-top: 0;
+			flex-shrink: 0;
+		}
+		main {
+			padding: 1rem;
+		}
 	}
 </style>

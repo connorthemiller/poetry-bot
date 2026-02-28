@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { getPoemById, getFeedbackForPoem, updatePoemRating, insertParticle } from '$lib/server/db';
+import { getPoemById, getFeedbackForPoem, getCritiqueForPoem, updatePoemRating, insertParticle } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 import type { Poem } from '$lib/types';
 
@@ -9,7 +9,8 @@ export const GET: RequestHandler = async ({ params }) => {
 	if (!poem) throw error(404, 'Poem not found');
 
 	const feedback = getFeedbackForPoem(id);
-	return json({ ...poem, feedback });
+	const critique = getCritiqueForPoem(id) || null;
+	return json({ ...poem, feedback, critique });
 };
 
 export const PATCH: RequestHandler = async ({ params, request }) => {

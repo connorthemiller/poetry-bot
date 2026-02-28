@@ -40,7 +40,7 @@ function findConnections(label: string, content: string): number[] {
 	return connections;
 }
 
-function insertParticleWithConnections(data: {
+export function insertParticleWithConnections(data: {
 	label: string;
 	category: string;
 	content: string;

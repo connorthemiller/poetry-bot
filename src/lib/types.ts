@@ -61,6 +61,25 @@ export interface AgentLog {
 	created_at: string;
 }
 
+export interface Critique {
+	id: number;
+	poem_id: number;
+	strengths: string;
+	weaknesses: string;
+	suggestions: string;
+	overall_assessment: string;
+	created_at: string;
+}
+
+export interface VoicePrinciples {
+	id: number;
+	principles: string;
+	poem_count: number;
+	source_poem_ids: string; // JSON array of poem IDs
+	supersedes_id: number | null;
+	created_at: string;
+}
+
 // -- API/UI types --
 
 export interface AgentState {
@@ -129,5 +148,10 @@ export interface Config {
 	};
 	search: {
 		max_results: number;
+	};
+	voice: {
+		reflect_every_n_poems: number;
+		reflect_max_wait_ms: number;
+		critique_temperature: number;
 	};
 }

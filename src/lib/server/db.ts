@@ -81,6 +81,25 @@ function initSchema(db: Database.Database) {
 			detail TEXT NOT NULL DEFAULT '{}',
 			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
+
+		CREATE TABLE IF NOT EXISTS critiques (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			poem_id INTEGER NOT NULL REFERENCES poems(id),
+			strengths TEXT NOT NULL DEFAULT '',
+			weaknesses TEXT NOT NULL DEFAULT '',
+			suggestions TEXT NOT NULL DEFAULT '',
+			overall_assessment TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
+		);
+
+		CREATE TABLE IF NOT EXISTS voice_principles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			principles TEXT NOT NULL,
+			poem_count INTEGER NOT NULL DEFAULT 0,
+			source_poem_ids TEXT NOT NULL DEFAULT '[]',
+			supersedes_id INTEGER REFERENCES voice_principles(id),
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
+		);
 	`);
 }
 
@@ -233,4 +252,77 @@ export function updatePoemRating(id: number, rating: string | null) {
 export function getRatedPoems(limit = 20) {
 	const db = getDb();
 	return db.prepare('SELECT id, title, body, rating FROM poems WHERE rating IS NOT NULL ORDER BY updated_at DESC LIMIT ?').all(limit);
+}
+
+// -- Critique helpers --
+
+export function insertCritique(data: {
+	poem_id: number;
+	strengths: string;
+	weaknesses: string;
+	suggestions: string;
+	overall_assessment: string;
+}) {
+	const db = getDb();
+	return db.prepare(`
+		INSERT INTO critiques (poem_id, strengths, weaknesses, suggestions, overall_assessment)
+		VALUES (@poem_id, @strengths, @weaknesses, @suggestions, @overall_assessment)
+	`).run(data);
+}
+
+export function getCritiqueForPoem(poemId: number) {
+	const db = getDb();
+	return db.prepare('SELECT * FROM critiques WHERE poem_id = ? ORDER BY created_at DESC LIMIT 1').get(poemId);
+}
+
+export function getRecentCritiques(limit = 10) {
+	const db = getDb();
+	return db.prepare('SELECT * FROM critiques ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
+// -- Voice principles helpers --
+
+export function insertVoicePrinciples(data: {
+	principles: string;
+	poem_count: number;
+	source_poem_ids: string;
+	supersedes_id: number | null;
+}) {
+	const db = getDb();
+	return db.prepare(`
+		INSERT INTO voice_principles (principles, poem_count, source_poem_ids, supersedes_id)
+		VALUES (@principles, @poem_count, @source_poem_ids, @supersedes_id)
+	`).run(data);
+}
+
+export function getCurrentVoicePrinciples() {
+	const db = getDb();
+	return db.prepare('SELECT * FROM voice_principles ORDER BY created_at DESC LIMIT 1').get();
+}
+
+export function getVoicePrinciplesHistory() {
+	const db = getDb();
+	return db.prepare('SELECT * FROM voice_principles ORDER BY created_at DESC').all();
+}
+
+export function getTotalPoemCount(): number {
+	const db = getDb();
+	const row = db.prepare('SELECT COUNT(*) as count FROM poems').get() as { count: number };
+	return row.count;
+}
+
+export function getRecentPoemsForReflection(limit = 10) {
+	const db = getDb();
+	return db.prepare('SELECT id, title, body, rating, created_at FROM poems ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
+export function countPoemsSinceLastReflection(): number {
+	const db = getDb();
+	const lastReflection = db.prepare('SELECT created_at FROM voice_principles ORDER BY created_at DESC LIMIT 1').get() as { created_at: string } | undefined;
+	if (!lastReflection) {
+		const row = db.prepare('SELECT COUNT(*) as count FROM poems').get() as { count: number };
+		return row.count;
+	}
+	const row = db.prepare('SELECT COUNT(*) as count FROM poems WHERE created_at > ?').get(lastReflection.created_at) as { count: number };
+	return row.count;
 }

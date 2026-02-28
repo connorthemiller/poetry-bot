@@ -1,10 +1,11 @@
 import { generate, generateStream } from './ollama';
 import { poemGenerationPrompt } from './prompts';
-import { getActiveParticles, insertPoem, markParticlesUsed, getRecentFeedback, getRatedPoems, logAgentEvent } from './db';
+import { getActiveParticles, insertPoem, markParticlesUsed, getRecentFeedback, getRatedPoems, getCurrentVoicePrinciples, logAgentEvent } from './db';
 import { getCurrentWeatherContext } from './weather';
 import { getSeason, getTimeOfDay } from './season';
 import { getConfig } from './config';
-import type { Particle, Feedback } from '$lib/types';
+import { critiquePoem } from './critique';
+import type { Particle, Feedback, VoicePrinciples } from '$lib/types';
 
 interface ParsedPoem {
 	thinking: string;
@@ -74,6 +75,8 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 	const season = getSeason(config.location.lat);
 	const timeOfDay = getTimeOfDay(config.location.timezone);
 
+	const voiceRow = getCurrentVoicePrinciples() as VoicePrinciples | undefined;
+
 	const prompt = poemGenerationPrompt({
 		particles,
 		feedback,
@@ -81,7 +84,8 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 		weather,
 		season,
 		timeOfDay,
-		triggeredBy
+		triggeredBy,
+		voicePrinciples: voiceRow?.principles || null
 	});
 
 	logAgentEvent('poem_generation_start', { triggeredBy, particleCount: particles.length });
@@ -115,6 +119,11 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 
 	logAgentEvent('poem_generation_complete', { poemId, title: parsed.title });
 
+	// Fire self-critique async (non-blocking)
+	critiquePoem(poemId, parsed.title, parsed.body, { particles, weather, season }).catch((err) => {
+		logAgentEvent('critique_error', { poemId, error: String(err) });
+	});
+
 	return { id: poemId, title: parsed.title, body: parsed.body, thinking: parsed.thinking };
 }
 
@@ -132,6 +141,8 @@ export async function generatePoemStream(): Promise<ReadableStream<Uint8Array>> 
 	const season = getSeason(config.location.lat);
 	const timeOfDay = getTimeOfDay(config.location.timezone);
 
+	const voiceRowStream = getCurrentVoicePrinciples() as VoicePrinciples | undefined;
+
 	const prompt = poemGenerationPrompt({
 		particles,
 		feedback,
@@ -139,7 +150,8 @@ export async function generatePoemStream(): Promise<ReadableStream<Uint8Array>> 
 		weather,
 		season,
 		timeOfDay,
-		triggeredBy: 'manual'
+		triggeredBy: 'manual',
+		voicePrinciples: voiceRowStream?.principles || null
 	});
 
 	logAgentEvent('poem_generation_start', { triggeredBy: 'manual', particleCount: particles.length });
@@ -175,6 +187,11 @@ export async function generatePoemStream(): Promise<ReadableStream<Uint8Array>> 
 				}
 
 				logAgentEvent('poem_generation_complete', { poemId, title: parsed.title });
+
+				// Fire self-critique async (non-blocking)
+				critiquePoem(poemId, parsed.title, parsed.body, { particles, weather, season }).catch((err) => {
+					logAgentEvent('critique_error', { poemId, error: String(err) });
+				});
 
 				// Send final event with poem ID
 				controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ id: poemId, title: parsed.title })}\n\n`));

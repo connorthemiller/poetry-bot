@@ -2,19 +2,16 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { ParticleViz } from '$lib/types';
 
-	interface Props {
-		width?: number;
-		height?: number;
-	}
-
-	let { width = 700, height = 400 }: Props = $props();
-
+	let container: HTMLDivElement;
 	let canvas: HTMLCanvasElement;
+	let width = $state(700);
+	let height = $state(400);
 	let particles: ParticleViz[] = $state([]);
 	let hoveredParticle: ParticleViz | null = $state(null);
 	let animationId: number;
 	let fetchInterval: ReturnType<typeof setInterval>;
 	let aligning = $state(false);
+	let resizeObserver: ResizeObserver;
 
 	// Category base hue ranges (degrees)
 	const categoryHueRange: Record<string, [number, number]> = {
@@ -245,7 +242,17 @@
 		}, 3000);
 	}
 
+	function measureContainer() {
+		if (!container) return;
+		const rect = container.getBoundingClientRect();
+		width = Math.floor(rect.width);
+		height = Math.max(200, Math.floor(width * 0.57));
+	}
+
 	onMount(() => {
+		measureContainer();
+		resizeObserver = new ResizeObserver(() => measureContainer());
+		resizeObserver.observe(container);
 		fetchParticles();
 		animate();
 		fetchInterval = setInterval(fetchParticles, 30_000);
@@ -254,10 +261,11 @@
 	onDestroy(() => {
 		if (animationId) cancelAnimationFrame(animationId);
 		if (fetchInterval) clearInterval(fetchInterval);
+		if (resizeObserver) resizeObserver.disconnect();
 	});
 </script>
 
-<div class="visualizer">
+<div class="visualizer" bind:this={container}>
 	<canvas
 		bind:this={canvas}
 		{width}
@@ -273,9 +281,12 @@
 		border-radius: 8px;
 		overflow: hidden;
 		background: #fefefe;
+		width: 100%;
 	}
 	canvas {
 		display: block;
 		cursor: default;
+		width: 100%;
+		height: auto;
 	}
 </style>

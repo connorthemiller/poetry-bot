@@ -1,9 +1,10 @@
 import { getConfig } from './config';
-import { getActiveParticles, decayParticles, getLastEvent, logAgentEvent } from './db';
+import { getActiveParticles, decayParticles, getLastEvent, countPoemsSinceLastReflection, logAgentEvent } from './db';
 import { createWeatherParticles } from './weather';
 import { createSeasonParticles } from './particles';
 import { generatePoem } from './poems';
 import { generateInterest, doResearch } from './research';
+import { doVoiceReflection } from './critique';
 import { sendNotification } from './ntfy';
 import type { Particle } from '$lib/types';
 
@@ -110,6 +111,23 @@ async function tick() {
 				await sendNotification(`New poem: ${result.title}`, result.body.slice(0, 200));
 			} catch {
 				// Notification not critical
+			}
+		}
+
+		// Voice reflection check
+		const poemsSinceReflection = countPoemsSinceLastReflection();
+		const timeSinceReflection = timeSinceEvent('voice_reflection');
+		if (
+			poemsSinceReflection >= config.voice.reflect_every_n_poems ||
+			timeSinceReflection > config.voice.reflect_max_wait_ms
+		) {
+			// Only reflect if there are poems to reflect on
+			if (poemsSinceReflection > 0) {
+				try {
+					await doVoiceReflection();
+				} catch (err) {
+					logAgentEvent('voice_reflection_error', { error: String(err) });
+				}
 			}
 		}
 

@@ -187,4 +187,22 @@
 		padding-top: 1.5rem;
 		border-top: 1px solid #eee;
 	}
+
+	@media (max-width: 640px) {
+		h1 {
+			font-size: 1.4rem;
+		}
+		.subtitle {
+			font-size: 0.85rem;
+		}
+		button.primary {
+			width: 100%;
+			padding: 0.6rem 1rem;
+			font-size: 1rem;
+			min-height: 44px;
+		}
+		.stream-output {
+			max-height: 300px;
+		}
+	}
 </style>

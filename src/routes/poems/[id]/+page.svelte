@@ -6,6 +6,8 @@
 
 	let poem: any = $state(null);
 	let feedback: any[] = $state([]);
+	let critique: any = $state(null);
+	let critiqueOpen = $state(false);
 	let loading = $state(true);
 	let error = $state('');
 
@@ -17,6 +19,7 @@
 				const data = await res.json();
 				poem = data;
 				feedback = data.feedback || [];
+				critique = data.critique || null;
 			} else {
 				error = 'Poem not found';
 			}
@@ -43,6 +46,42 @@
 		<a href="/poems" class="back">Back to poems</a>
 
 		<PoemCard {...poem} />
+
+		{#if critique}
+			<section class="critique-section">
+				<button class="critique-toggle" onclick={() => critiqueOpen = !critiqueOpen}>
+					{critiqueOpen ? '- ' : '+ '}Self-Critique
+				</button>
+				{#if critiqueOpen}
+					<div class="critique-body">
+						{#if critique.strengths}
+							<div class="critique-block">
+								<h4>Strengths</h4>
+								<p>{critique.strengths}</p>
+							</div>
+						{/if}
+						{#if critique.weaknesses}
+							<div class="critique-block">
+								<h4>Weaknesses</h4>
+								<p>{critique.weaknesses}</p>
+							</div>
+						{/if}
+						{#if critique.suggestions}
+							<div class="critique-block">
+								<h4>Suggestions</h4>
+								<p>{critique.suggestions}</p>
+							</div>
+						{/if}
+						{#if critique.overall_assessment}
+							<div class="critique-block">
+								<h4>Assessment</h4>
+								<p>{critique.overall_assessment}</p>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</section>
+		{/if}
 
 		{#if feedback.length > 0}
 			<section class="feedback-list">
@@ -90,5 +129,43 @@
 	.feedback-item time {
 		font-size: 0.75rem;
 		color: #aaa;
+	}
+	.critique-section {
+		margin-top: 1.5rem;
+		border: 1px solid #eee;
+		border-radius: 4px;
+	}
+	.critique-toggle {
+		width: 100%;
+		text-align: left;
+		padding: 0.75rem;
+		background: #fafafa;
+		border: none;
+		cursor: pointer;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #555;
+	}
+	.critique-toggle:hover {
+		background: #f0f0f0;
+	}
+	.critique-body {
+		padding: 0 0.75rem 0.75rem;
+	}
+	.critique-block {
+		margin-top: 0.75rem;
+	}
+	.critique-block h4 {
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #888;
+		margin: 0 0 0.25rem;
+	}
+	.critique-block p {
+		margin: 0;
+		font-size: 0.9rem;
+		white-space: pre-wrap;
+		line-height: 1.5;
 	}
 </style>

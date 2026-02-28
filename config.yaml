@@ -44,3 +44,8 @@ database:
 
 search:
   max_results: 5
+
+voice:
+  reflect_every_n_poems: 5
+  reflect_max_wait_ms: 86400000    # 24 hours
+  critique_temperature: 0.4

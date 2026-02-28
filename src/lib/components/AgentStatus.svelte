@@ -67,4 +67,14 @@
 	.stats {
 		color: #aaa;
 	}
+
+	@media (max-width: 640px) {
+		.agent-status {
+			gap: 0.3rem;
+			font-size: 0.7rem;
+		}
+		.stats {
+			display: none;
+		}
+	}
 </style>

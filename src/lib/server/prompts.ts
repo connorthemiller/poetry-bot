@@ -15,10 +15,17 @@ export function poemGenerationPrompt(context: {
 	season?: string | null;
 	timeOfDay?: string | null;
 	triggeredBy?: string;
+	voicePrinciples?: string | null;
 }): string {
 	const parts: string[] = [];
 
-	parts.push(`You are a contemplative poet. You absorb observations, impressions, and ideas, letting them accumulate until a poem emerges naturally from their connections.`);
+	parts.push(`You are a contemplative poet. You absorb observations, impressions, and ideas, letting them accumulate until a poem emerges naturally from their connections.
+
+You write modern free verse. You never rhyme. Your work draws on the tradition of poets like Mary Oliver, Ocean Vuong, Ada Limon, and W.S. Merwin -- accessible, precise, emotionally resonant. You care about line breaks, white space, and the weight of individual words. You favor clarity over cleverness, image over abstraction, and silence over filler. No end-rhymes, no forced meter, no sing-song cadence.`);
+
+	if (context.voicePrinciples) {
+		parts.push(`\nOver time, you have developed these principles about your own voice and craft:\n${context.voicePrinciples}`);
+	}
 
 	if (context.weather) {
 		parts.push(`\nCurrent weather: ${context.weather}`);
@@ -125,4 +132,81 @@ Extract 1-2 key takeaways from this feedback as "particles" -- concise lessons o
 
 Format:
 - LABEL: description`;
+}
+
+export function selfCritiquePrompt(poem: { title: string; body: string }, context: {
+	particles?: Particle[];
+	weather?: string | null;
+	season?: string | null;
+}): string {
+	const parts: string[] = [];
+
+	parts.push(`You are a poet reviewing your own work with honest, constructive self-criticism. Evaluate the following poem you just wrote.`);
+
+	parts.push(`\nTITLE: ${poem.title}\n\n${poem.body}`);
+
+	if (context.particles && context.particles.length > 0) {
+		const particleList = context.particles
+			.slice(0, 15)
+			.map((p) => `- [${p.category}] ${p.label}`)
+			.join('\n');
+		parts.push(`\nThese were the source impressions you were working from:\n${particleList}`);
+	}
+
+	if (context.weather) parts.push(`\nWeather context: ${context.weather}`);
+	if (context.season) parts.push(`Season: ${context.season}`);
+
+	parts.push(`\nProvide a structured critique. Be specific and honest -- identify both what works and what falls flat. Consider: imagery, line breaks, emotional resonance, originality, and how well you used your source material. Flag any accidental rhyming, sing-song cadence, or forced meter -- these are flaws, not features.`);
+	parts.push(`\nFormat your response exactly like this:`);
+	parts.push(`STRENGTHS:\n(what works well in this poem)`);
+	parts.push(`\nWEAKNESSES:\n(what falls flat or could be stronger)`);
+	parts.push(`\nSUGGESTIONS:\n- (specific actionable suggestion)\n- (another suggestion)\n- (optional third suggestion)`);
+	parts.push(`\nASSESSMENT:\n(1-2 sentence overall assessment)`);
+
+	return parts.join('\n');
+}
+
+export function voiceReflectionPrompt(context: {
+	currentPrinciples?: string | null;
+	recentPoems: { title: string; body: string; rating: string | null }[];
+	recentCritiques: { strengths: string; weaknesses: string; suggestions: string }[];
+	recentFeedback: { note: string }[];
+	poemCount: number;
+}): string {
+	const parts: string[] = [];
+
+	parts.push(`You are a poet reflecting on your recent work to understand and refine your voice.`);
+
+	if (!context.currentPrinciples) {
+		parts.push(`\nThis is your first reflection. You are discovering your voice for the first time based on the poems you have written so far.`);
+	} else {
+		parts.push(`\nYour current voice principles:\n${context.currentPrinciples}`);
+	}
+
+	parts.push(`\nYou have written ${context.poemCount} poems total. Here are your recent poems:`);
+	for (const poem of context.recentPoems) {
+		const ratingNote = poem.rating ? ` (reader rated: ${poem.rating})` : '';
+		parts.push(`\n--- "${poem.title}"${ratingNote} ---\n${poem.body}`);
+	}
+
+	if (context.recentCritiques.length > 0) {
+		parts.push(`\nYour self-critiques noted these patterns:`);
+		for (const c of context.recentCritiques) {
+			parts.push(`- Strengths: ${c.strengths.slice(0, 150)}`);
+			parts.push(`- Weaknesses: ${c.weaknesses.slice(0, 150)}`);
+		}
+	}
+
+	if (context.recentFeedback.length > 0) {
+		parts.push(`\nReader feedback:`);
+		for (const f of context.recentFeedback) {
+			parts.push(`- ${f.note}`);
+		}
+	}
+
+	parts.push(`\nRewrite your voice principles from scratch. Write in first person. Describe your aesthetic preferences, recurring themes, what you want to do better, and what you want to preserve. Be specific and honest. Under 300 words. Remember: you write modern free verse. You never rhyme. You value precise imagery, deliberate line breaks, and emotional clarity over ornament.`);
+	parts.push(`\nFormat your response exactly like this:`);
+	parts.push(`VOICE PRINCIPLES:\n(your principles here)`);
+
+	return parts.join('\n');
 }

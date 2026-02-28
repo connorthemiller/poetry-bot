@@ -97,4 +97,16 @@
 		color: #666;
 		margin-top: 0.5rem;
 	}
+
+	@media (max-width: 640px) {
+		textarea {
+			font-size: 1rem;
+		}
+		button {
+			width: 100%;
+			padding: 0.5rem 1rem;
+			font-size: 0.9rem;
+			min-height: 44px;
+		}
+	}
 </style>

@@ -24,7 +24,8 @@ const defaults: Config = {
 	particles: { decay_half_life_ms: 43_200_000, min_strength: 0.05, max_count: 200 },
 	ntfy: { server: 'https://ntfy.sh', topic: 'poetry-bot' },
 	database: { path: 'data/poetry-bot.db' },
-	search: { max_results: 5 }
+	search: { max_results: 5 },
+	voice: { reflect_every_n_poems: 5, reflect_max_wait_ms: 86_400_000, critique_temperature: 0.4 }
 };
 
 function deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
