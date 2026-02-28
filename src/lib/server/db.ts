@@ -32,15 +32,16 @@ function initSchema(db: Database.Database) {
 			weather_context TEXT,
 			season TEXT,
 			time_of_day TEXT,
-			created_at TEXT NOT NULL DEFAULT (datetime('now')),
-			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+			rating TEXT DEFAULT NULL,
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z'),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 
 		CREATE TABLE IF NOT EXISTS feedback (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			poem_id INTEGER NOT NULL REFERENCES poems(id),
 			note TEXT NOT NULL,
-			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 
 		CREATE TABLE IF NOT EXISTS references_ (
@@ -48,7 +49,7 @@ function initSchema(db: Database.Database) {
 			title TEXT NOT NULL DEFAULT '',
 			body TEXT NOT NULL,
 			source_type TEXT NOT NULL DEFAULT 'other',
-			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 
 		CREATE TABLE IF NOT EXISTS particles (
@@ -60,8 +61,8 @@ function initSchema(db: Database.Database) {
 			source TEXT NOT NULL DEFAULT '',
 			connections TEXT NOT NULL DEFAULT '[]',
 			used_in_poem_id INTEGER,
-			created_at TEXT NOT NULL DEFAULT (datetime('now')),
-			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z'),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 
 		CREATE TABLE IF NOT EXISTS interests (
@@ -70,15 +71,15 @@ function initSchema(db: Database.Database) {
 			origin TEXT NOT NULL DEFAULT '',
 			research_notes TEXT,
 			strength REAL NOT NULL DEFAULT 1.0,
-			created_at TEXT NOT NULL DEFAULT (datetime('now')),
-			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z'),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 
 		CREATE TABLE IF NOT EXISTS agent_log (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			event_type TEXT NOT NULL,
 			detail TEXT NOT NULL DEFAULT '{}',
-			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			created_at TEXT NOT NULL DEFAULT (datetime('now') || 'Z')
 		);
 	`);
 }
@@ -192,7 +193,7 @@ export function decayParticles(halfLifeMs: number, minStrength: number) {
 	const factor = Math.pow(0.5, 300_000 / halfLifeMs); // decay per 5-min tick
 	db.prepare(`
 		UPDATE particles
-		SET strength = strength * ?, updated_at = datetime('now')
+		SET strength = strength * ?, updated_at = datetime('now') || 'Z'
 		WHERE used_in_poem_id IS NULL AND strength > ?
 	`).run(factor, minStrength);
 	// Prune dead particles
@@ -211,7 +212,7 @@ export function getActiveInterests() {
 
 export function updateInterestResearch(id: number, notes: string) {
 	const db = getDb();
-	return db.prepare("UPDATE interests SET research_notes = ?, updated_at = datetime('now') WHERE id = ?").run(notes, id);
+	return db.prepare("UPDATE interests SET research_notes = ?, updated_at = datetime('now') || 'Z' WHERE id = ?").run(notes, id);
 }
 
 export function logAgentEvent(eventType: string, detail: Record<string, any> = {}) {
@@ -222,4 +223,14 @@ export function logAgentEvent(eventType: string, detail: Record<string, any> = {
 export function getLastEvent(eventType: string) {
 	const db = getDb();
 	return db.prepare('SELECT * FROM agent_log WHERE event_type = ? ORDER BY created_at DESC LIMIT 1').get(eventType);
+}
+
+export function updatePoemRating(id: number, rating: string | null) {
+	const db = getDb();
+	return db.prepare("UPDATE poems SET rating = ?, updated_at = datetime('now') || 'Z' WHERE id = ?").run(rating, id);
+}
+
+export function getRatedPoems(limit = 20) {
+	const db = getDb();
+	return db.prepare('SELECT id, title, body, rating FROM poems WHERE rating IS NOT NULL ORDER BY updated_at DESC LIMIT ?').all(limit);
 }

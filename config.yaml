@@ -3,7 +3,7 @@
 location:
   lat: 40.7128
   lon: -74.0060
-  timezone: America/New_York
+  timezone: America/Detroit
 
 ollama:
   url: http://localhost:11434

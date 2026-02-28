@@ -1,30 +1,38 @@
 <script lang="ts">
 	let title = $state('');
 	let body = $state('');
+	let url = $state('');
 	let sourceType = $state('poem');
 	let submitting = $state(false);
 	let message = $state('');
 
 	async function handleSubmit() {
-		if (!body.trim()) return;
+		if (!body.trim() && !url.trim()) return;
 		submitting = true;
 		message = '';
 
 		try {
+			const payload: Record<string, string> = {
+				title: title.trim(),
+				source_type: sourceType
+			};
+			if (url.trim()) {
+				payload.url = url.trim();
+			} else {
+				payload.body = body.trim();
+			}
+
 			const res = await fetch('/api/references', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					title: title.trim(),
-					body: body.trim(),
-					source_type: sourceType
-				})
+				body: JSON.stringify(payload)
 			});
 
 			if (res.ok) {
 				message = 'Reference submitted -- particles are being extracted.';
 				title = '';
 				body = '';
+				url = '';
 			} else {
 				const data = await res.json();
 				message = `Error: ${data.error || 'Unknown error'}`;
@@ -50,16 +58,19 @@
 		<option value="other">Other</option>
 	</select>
 
-	<label for="ref-body">Text</label>
+	<label for="ref-url">URL (optional -- fetches text from a web page)</label>
+	<input id="ref-url" type="url" bind:value={url} placeholder="https://..." disabled={submitting || !!body.trim()} />
+
+	<label for="ref-body">Text {url.trim() ? '(ignored when URL is provided)' : ''}</label>
 	<textarea
 		id="ref-body"
 		bind:value={body}
 		placeholder="Paste a poem, article excerpt, or any text that might inspire future writing..."
 		rows="8"
-		disabled={submitting}
+		disabled={submitting || !!url.trim()}
 	></textarea>
 
-	<button type="submit" disabled={submitting || !body.trim()}>
+	<button type="submit" disabled={submitting || (!body.trim() && !url.trim())}>
 		{submitting ? 'Submitting...' : 'Submit Reference'}
 	</button>
 	{#if message}

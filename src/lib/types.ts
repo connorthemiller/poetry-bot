@@ -11,6 +11,7 @@ export interface Poem {
 	weather_context: string | null;
 	season: string | null;
 	time_of_day: string | null;
+	rating: 'up' | 'down' | 'favorite' | null;
 	created_at: string;
 	updated_at: string;
 }

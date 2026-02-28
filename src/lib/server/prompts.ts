@@ -1,8 +1,16 @@
 import type { Particle, Feedback } from '$lib/types';
 
+interface RatedPoem {
+	id: number;
+	title: string;
+	body: string;
+	rating: string;
+}
+
 export function poemGenerationPrompt(context: {
 	particles?: Particle[];
 	feedback?: Feedback[];
+	ratedPoems?: RatedPoem[];
 	weather?: string | null;
 	season?: string | null;
 	timeOfDay?: string | null;
@@ -32,6 +40,21 @@ export function poemGenerationPrompt(context: {
 	if (context.feedback && context.feedback.length > 0) {
 		const feedbackList = context.feedback.map((f) => `- ${f.note}`).join('\n');
 		parts.push(`\nFeedback from previous poems to keep in mind:\n${feedbackList}`);
+	}
+
+	if (context.ratedPoems && context.ratedPoems.length > 0) {
+		const liked = context.ratedPoems.filter((p) => p.rating === 'up' || p.rating === 'favorite');
+		const disliked = context.ratedPoems.filter((p) => p.rating === 'down');
+		const notes: string[] = [];
+		if (liked.length > 0) {
+			notes.push(`The reader enjoyed these poems: ${liked.map((p) => `"${p.title}"`).join(', ')}`);
+		}
+		if (disliked.length > 0) {
+			notes.push(`The reader did not enjoy these poems: ${disliked.map((p) => `"${p.title}"`).join(', ')}`);
+		}
+		if (notes.length > 0) {
+			parts.push(`\nReader preferences:\n${notes.join('\n')}`);
+		}
 	}
 
 	parts.push(`\nWrite a poem. First, share your thought process -- what connections you see between these inputs, what draws your attention, what you want to explore. Then write the poem itself.`);

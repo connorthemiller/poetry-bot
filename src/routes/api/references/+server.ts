@@ -9,10 +9,48 @@ export const GET: RequestHandler = async ({ url }) => {
 	return json(getReferences(limit, offset));
 };
 
+function stripHtml(html: string): string {
+	return html
+		.replace(/<script[\s\S]*?<\/script>/gi, '')
+		.replace(/<style[\s\S]*?<\/style>/gi, '')
+		.replace(/<[^>]+>/g, ' ')
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&amp;/g, '&')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+async function fetchUrlText(url: string): Promise<string> {
+	const res = await fetch(url, {
+		headers: { 'User-Agent': 'PoetryBot/1.0 (reference fetcher)' }
+	});
+	if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
+	const html = await res.text();
+	const text = stripHtml(html);
+	return text.slice(0, 5000);
+}
+
 export const POST: RequestHandler = async ({ request }) => {
-	const { title, body, source_type } = await request.json();
+	const data = await request.json();
+	const { title, source_type } = data;
+	let { body } = data;
+	const url = data.url as string | undefined;
+
+	if (url && typeof url === 'string' && url.trim()) {
+		try {
+			body = await fetchUrlText(url.trim());
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Failed to fetch URL';
+			throw error(400, msg);
+		}
+	}
+
 	if (!body || typeof body !== 'string') {
-		throw error(400, 'Body text is required');
+		throw error(400, 'Body text is required (or provide a URL)');
 	}
 
 	insertReference({

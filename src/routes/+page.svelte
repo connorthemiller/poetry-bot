@@ -9,6 +9,7 @@
 	let generating = $state(false);
 	let latestPoem: any = $state(null);
 	let error = $state('');
+	let streamText = $state('');
 
 	async function loadLatest() {
 		try {
@@ -23,17 +24,47 @@
 	async function requestPoem() {
 		generating = true;
 		error = '';
+		streamText = '';
 
 		try {
-			const res = await fetch('/api/poems', { method: 'POST' });
-			const data = await res.json();
-
-			if (res.ok) {
-				visualizer?.triggerAlignment();
-				latestPoem = null;
-				await loadLatest();
-			} else {
+			const res = await fetch('/api/poems?stream=1', { method: 'POST' });
+			if (!res.ok) {
+				const data = await res.json();
 				error = data.error || 'Failed to generate poem';
+				generating = false;
+				return;
+			}
+
+			visualizer?.triggerAlignment();
+
+			const reader = res.body!.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+
+				// Parse SSE events from buffer
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				let eventType = '';
+				for (const line of lines) {
+					if (line.startsWith('event: ')) {
+						eventType = line.slice(7);
+					} else if (line.startsWith('data: ')) {
+						const data = line.slice(6);
+						if (eventType === 'token') {
+							try { streamText += JSON.parse(data); } catch { /* */ }
+						} else if (eventType === 'done') {
+							// Poem saved, reload latest
+							await loadLatest();
+						}
+						eventType = '';
+					}
+				}
 			}
 		} catch (err) {
 			error = 'Failed to connect to server. Is Ollama running?';
@@ -60,6 +91,12 @@
 
 		{#if error}
 			<p class="error">{error}</p>
+		{/if}
+
+		{#if generating && streamText}
+			<div class="stream-output">
+				<pre>{streamText}</pre>
+			</div>
 		{/if}
 	</section>
 
@@ -124,6 +161,23 @@
 		color: #dc2626;
 		font-size: 0.85rem;
 		margin-top: 0.5rem;
+	}
+	.stream-output {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #f5f5f0;
+		border: 1px solid #e0e0d8;
+		border-radius: 6px;
+		max-height: 400px;
+		overflow-y: auto;
+	}
+	.stream-output pre {
+		margin: 0;
+		white-space: pre-wrap;
+		font-family: Georgia, 'Times New Roman', serif;
+		font-size: 0.9rem;
+		line-height: 1.6;
+		color: #444;
 	}
 	.visualizer-section {
 		margin-bottom: 1.5rem;

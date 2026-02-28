@@ -4,6 +4,7 @@
 
 	let references: any[] = $state([]);
 	let loading = $state(true);
+	let expanded: Record<number, boolean> = $state({});
 
 	async function loadRefs() {
 		try {
@@ -32,7 +33,18 @@
 			{#each references as ref}
 				<div class="ref-item">
 					<h3>{ref.title || 'Untitled'} <span class="type">{ref.source_type}</span></h3>
-					<p class="ref-body">{ref.body.slice(0, 300)}{ref.body.length > 300 ? '...' : ''}</p>
+					<p class="ref-body">
+						{#if expanded[ref.id] || ref.body.length <= 300}
+							{ref.body}
+						{:else}
+							{ref.body.slice(0, 300)}...
+						{/if}
+					</p>
+					{#if ref.body.length > 300}
+						<button class="expand-toggle" onclick={() => expanded[ref.id] = !expanded[ref.id]}>
+							{expanded[ref.id] ? 'Show less' : 'Show more'}
+						</button>
+					{/if}
 					<time>{new Date(ref.created_at).toLocaleDateString()}</time>
 				</div>
 			{/each}
@@ -82,6 +94,18 @@
 		line-height: 1.5;
 		margin: 0 0 0.25rem;
 		white-space: pre-wrap;
+	}
+	.expand-toggle {
+		background: none;
+		border: none;
+		color: #6366f1;
+		font-size: 0.8rem;
+		cursor: pointer;
+		padding: 0;
+		margin-bottom: 0.25rem;
+	}
+	.expand-toggle:hover {
+		text-decoration: underline;
 	}
 	time {
 		font-size: 0.75rem;

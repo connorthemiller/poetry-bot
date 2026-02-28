@@ -16,23 +16,41 @@
 	let fetchInterval: ReturnType<typeof setInterval>;
 	let aligning = $state(false);
 
-	const categoryColors: Record<string, string> = {
-		weather: '#93c5fd',
-		season: '#86efac',
-		interest: '#fdba74',
-		reference: '#c4b5fd',
-		feedback: '#f9a8d4',
-		research: '#fcd34d'
+	// Category base hue ranges (degrees)
+	const categoryHueRange: Record<string, [number, number]> = {
+		weather: [200, 220],
+		season: [100, 140],
+		interest: [25, 45],
+		reference: [260, 290],
+		feedback: [320, 345],
+		research: [45, 65]
 	};
 
-	const categoryColorsAlpha: Record<string, string> = {
-		weather: 'rgba(147, 197, 253, 0.3)',
-		season: 'rgba(134, 239, 172, 0.3)',
-		interest: 'rgba(253, 186, 116, 0.3)',
-		reference: 'rgba(196, 181, 253, 0.3)',
-		feedback: 'rgba(249, 168, 212, 0.3)',
-		research: 'rgba(252, 211, 77, 0.3)'
-	};
+	function hashString(s: string): number {
+		let hash = 0;
+		for (let i = 0; i < s.length; i++) {
+			hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+		}
+		return Math.abs(hash);
+	}
+
+	function particleColor(category: string, label: string, strength: number): string {
+		const range = categoryHueRange[category] || [0, 360];
+		const hash = hashString(label);
+		const hue = range[0] + (hash % (range[1] - range[0]));
+		const sat = 55 + strength * 30;
+		const lit = 60 + (1 - strength) * 15;
+		return `hsl(${hue}, ${sat}%, ${lit}%)`;
+	}
+
+	function particleColorAlpha(category: string, label: string, strength: number): string {
+		const range = categoryHueRange[category] || [0, 360];
+		const hash = hashString(label);
+		const hue = range[0] + (hash % (range[1] - range[0]));
+		const sat = 55 + strength * 30;
+		const lit = 60 + (1 - strength) * 15;
+		return `hsla(${hue}, ${sat}%, ${lit}%, 0.3)`;
+	}
 
 	function initPositions(ps: ParticleViz[]) {
 		for (const p of ps) {
@@ -127,8 +145,8 @@
 			if (p.x === undefined || p.y === undefined) continue;
 
 			const radius = 4 + p.strength * 12;
-			const color = categoryColors[p.category] || '#ccc';
-			const alphaColor = categoryColorsAlpha[p.category] || 'rgba(200,200,200,0.3)';
+			const color = particleColor(p.category, p.label, p.strength);
+			const alphaColor = particleColorAlpha(p.category, p.label, p.strength);
 
 			// Glow
 			ctx.beginPath();

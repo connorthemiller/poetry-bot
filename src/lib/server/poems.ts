@@ -1,6 +1,6 @@
-import { generate } from './ollama';
+import { generate, generateStream } from './ollama';
 import { poemGenerationPrompt } from './prompts';
-import { getActiveParticles, insertPoem, markParticlesUsed, getRecentFeedback, logAgentEvent } from './db';
+import { getActiveParticles, insertPoem, markParticlesUsed, getRecentFeedback, getRatedPoems, logAgentEvent } from './db';
 import { getCurrentWeatherContext } from './weather';
 import { getSeason, getTimeOfDay } from './season';
 import { getConfig } from './config';
@@ -12,9 +12,16 @@ interface ParsedPoem {
 	body: string;
 }
 
+function cleanTitle(raw: string): string {
+	return raw
+		.replace(/^[\s*"'#]+/, '')
+		.replace(/[\s*"'#]+$/, '')
+		.trim();
+}
+
 function parseResponse(raw: string): ParsedPoem {
 	let thinking = '';
-	let title = 'Untitled';
+	let title = '';
 	let body = raw;
 
 	// Try to parse structured response
@@ -23,15 +30,30 @@ function parseResponse(raw: string): ParsedPoem {
 	const poemMatch = raw.match(/POEM:\s*([\s\S]*?)$/i);
 
 	if (thinkingMatch) thinking = thinkingMatch[1].trim();
-	if (titleMatch) title = titleMatch[1].trim();
+	if (titleMatch) title = cleanTitle(titleMatch[1]);
 	if (poemMatch) body = poemMatch[1].trim();
 
 	// If parsing failed, treat the whole thing as the poem
 	if (!poemMatch && !titleMatch) {
 		body = raw.trim();
 		thinking = '';
-		title = 'Untitled';
 	}
+
+	// If title is still empty, try extracting from the poem body
+	if (!title) {
+		const lines = body.split('\n').filter((l) => l.trim());
+		if (lines.length > 1) {
+			const firstLine = lines[0].trim();
+			// Short, title-like first line (under 60 chars, no ending punctuation typical of verse)
+			if (firstLine.length < 60 && !/[,;:]$/.test(firstLine)) {
+				title = cleanTitle(firstLine);
+				// Remove the title line from the body
+				body = lines.slice(1).join('\n').trim();
+			}
+		}
+	}
+
+	if (!title) title = 'Untitled';
 
 	return { thinking, title, body };
 }
@@ -40,6 +62,7 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 	const config = getConfig();
 	const particles = getActiveParticles() as Particle[];
 	const feedback = getRecentFeedback(5) as Feedback[];
+	const ratedPoems = getRatedPoems(10) as { id: number; title: string; body: string; rating: string }[];
 
 	let weather: string | null = null;
 	try {
@@ -54,6 +77,7 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 	const prompt = poemGenerationPrompt({
 		particles,
 		feedback,
+		ratedPoems,
 		weather,
 		season,
 		timeOfDay,
@@ -92,4 +116,75 @@ export async function generatePoem(triggeredBy: 'manual' | 'autonomous' = 'manua
 	logAgentEvent('poem_generation_complete', { poemId, title: parsed.title });
 
 	return { id: poemId, title: parsed.title, body: parsed.body, thinking: parsed.thinking };
+}
+
+export async function generatePoemStream(): Promise<ReadableStream<Uint8Array>> {
+	const config = getConfig();
+	const particles = getActiveParticles() as Particle[];
+	const feedback = getRecentFeedback(5) as Feedback[];
+	const ratedPoems = getRatedPoems(10) as { id: number; title: string; body: string; rating: string }[];
+
+	let weather: string | null = null;
+	try {
+		weather = await getCurrentWeatherContext();
+	} catch { /* */ }
+
+	const season = getSeason(config.location.lat);
+	const timeOfDay = getTimeOfDay(config.location.timezone);
+
+	const prompt = poemGenerationPrompt({
+		particles,
+		feedback,
+		ratedPoems,
+		weather,
+		season,
+		timeOfDay,
+		triggeredBy: 'manual'
+	});
+
+	logAgentEvent('poem_generation_start', { triggeredBy: 'manual', particleCount: particles.length });
+
+	const tokenStream = await generateStream(prompt);
+	const reader = tokenStream.getReader();
+	const encoder = new TextEncoder();
+	let fullText = '';
+
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const { done, value } = await reader.read();
+			if (done) {
+				// Save the completed poem
+				const parsed = parseResponse(fullText);
+				const chainOfThought = JSON.stringify([parsed.thinking]);
+				const particleSnapshot = JSON.stringify(particles.map((p) => ({ id: p.id, label: p.label, category: p.category })));
+
+				const result = insertPoem({
+					title: parsed.title,
+					body: parsed.body,
+					chain_of_thought: chainOfThought,
+					particle_snapshot: particleSnapshot,
+					triggered_by: 'manual',
+					weather_context: weather,
+					season,
+					time_of_day: timeOfDay
+				});
+
+				const poemId = result.lastInsertRowid as number;
+				if (particles.length > 0) {
+					markParticlesUsed(particles.map((p) => p.id), poemId);
+				}
+
+				logAgentEvent('poem_generation_complete', { poemId, title: parsed.title });
+
+				// Send final event with poem ID
+				controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ id: poemId, title: parsed.title })}\n\n`));
+				controller.close();
+				return;
+			}
+
+			fullText += value;
+			// Send token as SSE event
+			controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify(value)}\n\n`));
+		}
+	});
 }

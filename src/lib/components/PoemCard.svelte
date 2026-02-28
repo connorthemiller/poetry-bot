@@ -8,6 +8,7 @@
 		time_of_day?: string | null;
 		weather_context?: string | null;
 		triggered_by?: string;
+		rating?: string | null;
 		created_at: string;
 		compact?: boolean;
 	}
@@ -21,11 +22,30 @@
 		time_of_day,
 		weather_context,
 		triggered_by,
+		rating: initialRating = null,
 		created_at,
 		compact = false
 	}: Props = $props();
 
 	let showThinking = $state(false);
+	let currentRating = $state(initialRating);
+	let ratingLoading = $state(false);
+
+	async function setRating(value: string) {
+		ratingLoading = true;
+		try {
+			const res = await fetch(`/api/poems/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ rating: value })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				currentRating = data.rating;
+			}
+		} catch { /* silent */ }
+		ratingLoading = false;
+	}
 
 	let thinking = $derived(() => {
 		if (!chain_of_thought) return [];
@@ -76,6 +96,32 @@
 
 	{#if weather_context && !compact}
 		<div class="weather-note">Weather: {weather_context}</div>
+	{/if}
+
+	{#if !compact}
+		<div class="rating-buttons">
+			<button
+				class="rate-btn"
+				class:active={currentRating === 'up'}
+				disabled={ratingLoading}
+				onclick={() => setRating('up')}
+				title="Thumbs up"
+			>+1</button>
+			<button
+				class="rate-btn"
+				class:active={currentRating === 'down'}
+				disabled={ratingLoading}
+				onclick={() => setRating('down')}
+				title="Thumbs down"
+			>-1</button>
+			<button
+				class="rate-btn favorite"
+				class:active={currentRating === 'favorite'}
+				disabled={ratingLoading}
+				onclick={() => setRating('favorite')}
+				title="Favorite"
+			>*</button>
+		</div>
 	{/if}
 
 	{#if thinking().length > 0 && thinking()[0] && !compact}
@@ -148,6 +194,33 @@
 		color: #999;
 		font-style: italic;
 		margin-bottom: 0.5rem;
+	}
+	.rating-buttons {
+		display: flex;
+		gap: 0.4rem;
+		margin-bottom: 0.75rem;
+	}
+	.rate-btn {
+		background: none;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		padding: 0.2rem 0.6rem;
+		font-size: 0.8rem;
+		cursor: pointer;
+		color: #888;
+	}
+	.rate-btn:hover:not(:disabled) {
+		background: #f0f0f0;
+	}
+	.rate-btn.active {
+		background: #e8e8e8;
+		border-color: #999;
+		color: #333;
+	}
+	.rate-btn.favorite.active {
+		background: #fef3c7;
+		border-color: #f59e0b;
+		color: #b45309;
 	}
 	.thinking-toggle {
 		background: none;
