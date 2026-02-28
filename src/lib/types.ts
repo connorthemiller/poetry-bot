@@ -90,16 +90,43 @@ export interface AgentState {
 	readiness_score: number;
 }
 
+export interface WeightedConnection {
+	id: number;
+	weight: number;
+}
+
 export interface ParticleViz {
 	id: number;
 	label: string;
 	category: Particle['category'];
 	strength: number;
-	connections: number[];
+	connections: WeightedConnection[];
 	x?: number;
 	y?: number;
 	vx?: number;
 	vy?: number;
+}
+
+export interface ReadinessBreakdown {
+	score: number;
+	threshold: number;
+	components: {
+		count: number;
+		diversity: number;
+		connections: number;
+		time_pressure: number;
+	};
+	weights: {
+		count: number;
+		diversity: number;
+		connections: number;
+		time_pressure: number;
+	};
+}
+
+export interface ParticleApiResponse {
+	particles: ParticleViz[];
+	readiness: ReadinessBreakdown;
 }
 
 export interface Config {

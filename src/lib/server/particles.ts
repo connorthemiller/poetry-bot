@@ -19,12 +19,12 @@ function extractKeywords(text: string): Set<string> {
 	);
 }
 
-function findConnections(label: string, content: string): number[] {
+function findConnections(label: string, content: string): { id: number; weight: number }[] {
 	const keywords = extractKeywords(`${label} ${content}`);
 	if (keywords.size === 0) return [];
 
 	const active = getActiveParticles() as { id: number; label: string; content: string }[];
-	const connections: number[] = [];
+	const connections: { id: number; weight: number }[] = [];
 
 	for (const p of active) {
 		const otherKeywords = extractKeywords(`${p.label} ${p.content}`);
@@ -33,7 +33,8 @@ function findConnections(label: string, content: string): number[] {
 			if (otherKeywords.has(kw)) overlap++;
 		}
 		if (overlap >= 1) {
-			connections.push(p.id);
+			const weight = overlap / Math.min(keywords.size, otherKeywords.size);
+			connections.push({ id: p.id, weight: Math.min(weight, 1) });
 		}
 	}
 

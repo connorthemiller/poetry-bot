@@ -6,7 +6,7 @@ import { generatePoem } from './poems';
 import { generateInterest, doResearch } from './research';
 import { doVoiceReflection } from './critique';
 import { sendNotification } from './ntfy';
-import type { Particle } from '$lib/types';
+import type { Particle, ReadinessBreakdown } from '$lib/types';
 
 let running = false;
 let lastTick: string | null = null;
@@ -27,42 +27,70 @@ function randomBetween(min: number, max: number): number {
 	return min + Math.random() * (max - min);
 }
 
-export function evaluateReadiness(): number {
+export function evaluateReadinessDetailed(): ReadinessBreakdown {
 	const config = getConfig();
 	const particles = getActiveParticles() as Particle[];
 	const weights = config.readiness.weights;
 
-	if (particles.length < config.readiness.min_particles) return 0;
+	if (particles.length < config.readiness.min_particles) {
+		return {
+			score: 0,
+			threshold: config.readiness.score_threshold,
+			components: { count: 0, diversity: 0, connections: 0, time_pressure: 0 },
+			weights: {
+				count: weights.count,
+				diversity: weights.diversity,
+				connections: weights.connections,
+				time_pressure: weights.time_pressure
+			}
+		};
+	}
 
-	// Count score: more particles -> higher score, capped at 1
 	const countScore = Math.min(particles.length / (config.readiness.min_particles * 4), 1);
 
-	// Diversity: how many unique categories are represented
 	const categories = new Set(particles.map((p) => p.category));
 	const diversityScore = Math.min(categories.size / 5, 1);
 
-	// Connection density: average connections per particle
 	const totalConnections = particles.reduce((sum, p) => {
-		const conns = JSON.parse(p.connections) as number[];
+		const conns = JSON.parse(p.connections) as unknown[];
 		return sum + conns.length;
 	}, 0);
 	const connectionScore = Math.min(totalConnections / (particles.length * 2), 1);
 
-	// Time pressure: how long since last poem
 	const timeSincePoem = timeSinceEvent('poem_generation_complete');
 	const timePressure = Math.min(timeSincePoem / config.agent.max_poem_wait_ms, 1);
 
-	// Randomness
 	const randomFactor = Math.random();
 
-	const score =
+	const score = Math.min(
 		countScore * weights.count +
 		diversityScore * weights.diversity +
 		connectionScore * weights.connections +
 		timePressure * weights.time_pressure +
-		randomFactor * weights.randomness;
+		randomFactor * weights.randomness,
+		1
+	);
 
-	return Math.min(score, 1);
+	return {
+		score,
+		threshold: config.readiness.score_threshold,
+		components: {
+			count: countScore,
+			diversity: diversityScore,
+			connections: connectionScore,
+			time_pressure: timePressure
+		},
+		weights: {
+			count: weights.count,
+			diversity: weights.diversity,
+			connections: weights.connections,
+			time_pressure: weights.time_pressure
+		}
+	};
+}
+
+export function evaluateReadiness(): number {
+	return evaluateReadinessDetailed().score;
 }
 
 async function tick() {
