@@ -1,0 +1,46 @@
+# Poetry Bot Configuration
+
+location:
+  lat: 40.7128
+  lon: -74.0060
+  timezone: America/New_York
+
+ollama:
+  url: http://localhost:11434
+  model: gemma3:4b
+  temperature: 0.8
+
+agent:
+  tick_interval_ms: 300000        # 5 minutes
+  weather_interval_ms: 1800000    # 30 minutes
+  season_interval_ms: 3600000     # 1 hour
+  interest_min_ms: 7200000        # 2 hours
+  interest_max_ms: 21600000       # 6 hours
+  research_min_ms: 3600000        # 1 hour
+  research_max_ms: 14400000       # 4 hours
+  max_poem_wait_ms: 86400000      # 24 hours
+
+readiness:
+  score_threshold: 0.7
+  min_particles: 5
+  weights:
+    count: 0.25
+    diversity: 0.25
+    connections: 0.25
+    time_pressure: 0.15
+    randomness: 0.10
+
+particles:
+  decay_half_life_ms: 43200000    # 12 hours
+  min_strength: 0.05
+  max_count: 200
+
+ntfy:
+  server: https://ntfy.sh
+  topic: poetry-bot
+
+database:
+  path: data/poetry-bot.db
+
+search:
+  max_results: 5
